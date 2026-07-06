@@ -47,3 +47,7 @@ backend/uploads/
 *.bak
 
 start-backend-deepseek.ps1
+
+~$*.xlsx
+~$*.docx
+~$*.pptx
