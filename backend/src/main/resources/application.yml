@@ -1,0 +1,43 @@
+server:
+  port: 8888
+
+spring:
+  application:
+    name: moodboard-mbti
+
+  datasource:
+    url: "jdbc:h2:file:./data/moodboard;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+
+# 默认是 mock，不配 Key 也能跑完整功能。
+# 接 DeepSeek 时推荐环境变量：AI_MODE=real、DEEPSEEK_API_KEY=你的Key
+ai:
+  mode: ${AI_MODE:real}
+  chat-url: ${AI_CHAT_URL:https://api.deepseek.com/chat/completions}
+  api-key: ${DEEPSEEK_API_KEY:你的DeepSeekKey}
+  model: ${AI_MODEL:deepseek-chat}
+  thinking-type: ${AI_THINKING_TYPE:disabled}
+  reasoning-effort: ${AI_REASONING_EFFORT:high}
+  temperature: ${AI_TEMPERATURE:0.7}
+  timeout-seconds: ${AI_TIMEOUT_SECONDS:90}
+app:
+  upload-dir: uploads
+
+amap:
+  key: ${AMAP_KEY:87605d65560cd1b7948666f7404a47c1}

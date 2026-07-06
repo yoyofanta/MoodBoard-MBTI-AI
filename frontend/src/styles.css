@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: #343434;
+  background: #F8F6F1;
+}
+body { margin: 0; background: #F8F6F1; }
+* { box-sizing: border-box; }
+.card { @apply rounded-[30px] bg-white/80 shadow-soft; }
+.soft-input { @apply w-full rounded-[24px] bg-[#F8F4ED] px-4 py-3 text-sm outline-none placeholder:text-[#B9B2A8]; }
+.primary-btn { @apply rounded-full bg-[#BFA889] px-5 py-3 text-sm font-medium text-white active:scale-95 transition disabled:opacity-50; }
+.secondary-btn { @apply rounded-full bg-[#F2ECE2] px-5 py-3 text-sm text-[#8D7B68] active:scale-95 transition; }
