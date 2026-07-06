@@ -1,6 +1,6 @@
-# MoodBoard × MBTI 完整项目（DeepSeek 版）
+# MoodBoard × MBTI
 
-这是一个可直接运行的 **情绪日记 + AI 树洞 + MBTI 人格互动** 项目，适合作为软件测试实习生简历项目。
+这是一个可直接运行的 情绪日记 + AI 树洞 + MBTI 人格互动项目
 
 ## 一、项目功能
 
@@ -224,29 +224,11 @@ spring:
     hibernate:
       ddl-auto: update
 ```
-
 先创建数据库：
 
 ```sql
 CREATE DATABASE moodboard_mbti DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
-
----
-
-# 八、测试建议
-
-这个项目适合写进测试简历。你可以做：
-
-```text
-1. 功能测试：注册登录、情绪日记、AI聊天、人格面具、盲盒、多人格对战
-2. 接口测试：Postman 测正常参数、空参数、非法参数、超长文本、未登录访问
-3. 数据库测试：验证日记、聊天、人格面具、对战记录是否正确入库
-4. 异常测试：DeepSeek API Key错误、接口超时、AI返回为空
-5. 兼容性测试：Chrome、Edge、移动端浏览器
-6. 自动化测试：Selenium 自动登录、创建日记、发送树洞消息
-7. 性能测试：JMeter 对 /api/ai/chat/send 和 /api/ai/persona-battle/start 做基础并发测试
-```
-
 ---
 
 系统支持 Mock / API 双模式：
@@ -256,29 +238,3 @@ Mock 模式：
 
 API 模式：
 用于真实接口联调测试，验证 AI 服务调用、超时处理、异常返回等场景。
-
-# 九、简历写法
-
-项目名称：
-
-```text
-MoodBoard × MBTI 情绪日记与 AI 树洞人格互动系统
-```
-
-技术栈：
-
-```text
-Vue3、TypeScript、Tailwind CSS、SpringBoot、JPA、H2/MySQL、Axios、DeepSeek API、Postman、JMeter、Selenium
-```
-
-项目描述：
-
-```text
-设计并实现一款轻量级情绪日记与 AI 树洞应用，包含情绪周历、AI 单人格聊天、MBTI 人格切换、自定义人格面具、心灵盲盒、多人格对战、阅后即焚和个人中心等功能。后端根据用户职业、年龄段、MBTI 人格设定和自定义 Prompt 动态拼装系统提示词，实现不同人格视角下的 AI 回复。
-```
-
-测试亮点：
-
-```text
-围绕登录注册、日记 CRUD、AI 聊天、人格面具、心灵盲盒、多人格对战、阅后即焚、接口异常、数据一致性、AI 超时等场景设计测试用例；使用 Postman 进行接口测试，使用 MySQL/H2 校验数据一致性，使用 JMeter 做基础并发测试。
-```
