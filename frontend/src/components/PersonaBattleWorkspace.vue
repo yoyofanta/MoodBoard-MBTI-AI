@@ -243,7 +243,13 @@ type BattleSession = {
   updatedAt: string
 }
 
-const STORAGE_KEY = 'moodboard_agent_battle_sessions'
+function getCurrentUserKey() {
+  return localStorage.getItem('moodboard_current_user') || 'guest'
+}
+
+function getStorageKey() {
+  return `moodboard_agent_battle_sessions_${getCurrentUserKey()}`
+}
 
 const agentOptions: AgentOption[] = [
   {
@@ -633,7 +639,7 @@ async function scrollToBottom() {
 
 function loadSessions() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(getStorageKey())
 
     if (!raw) {
       return
@@ -650,7 +656,7 @@ function loadSessions() {
 }
 
 function saveSessions() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions.value))
+  localStorage.setItem(getStorageKey(), JSON.stringify(sessions.value))
 }
 
 function createId() {

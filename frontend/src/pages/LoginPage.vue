@@ -96,15 +96,38 @@ function switchMode(target: ModeType) {
   mode.value = target
 }
 
+function getPayload(res: any) {
+  if (!res) {
+    return {}
+  }
+
+  if (res.data?.data) {
+    return res.data.data
+  }
+
+  if (res.data) {
+    return res.data
+  }
+
+  if (res.code === 200 && res.data) {
+    return res.data
+  }
+
+  return res
+}
+
 function getToken(res: any) {
+  const data = getPayload(res)
+
   return (
-    res?.data?.token ||
-    res?.token ||
-    res?.data?.accessToken ||
-    res?.accessToken ||
+    data.token ||
+    data.accessToken ||
+    data.jwt ||
+    data?.user?.token ||
     ''
   )
 }
+
 
 async function submit() {
   if (!form.username.trim()) {
@@ -139,103 +162,98 @@ async function submit() {
 }
 
 async function login() {
-  const res: any = await api.login({
-    username: form.username,
-    password: form.password
-  })
+  try {
+    loading.value = true
 
-  const token = getToken(res)
+    const res: any = await api.login({
+      username: form.username,
+      password: form.password
+    })
 
-  if (!token) {
-    alert('登录失败：未获取到 token')
-    return
+    const token = getToken(res)
+
+    if (!token) {
+      alert('登录失败：未获取到 token')
+      return
+    }
+
+    saveLoginState(token, form.username)
+    router.push('/app/diary')
+  } catch (e) {
+    console.error(e)
+    alert('登录失败，请检查账号或密码')
+  } finally {
+    loading.value = false
   }
-
-  localStorage.setItem('token', token)
-  router.push('/app/diary')
 }
 
 async function register() {
-  const res: any = await api.register({
-    username: form.username,
-    password: form.password
-  })
+  try {
+    loading.value = true
 
-  let token = getToken(res)
+    await api.register({
+      username: form.username,
+      password: form.password
+    })
 
-  /**
-   * 有些后端注册接口只返回“注册成功”，不直接返回 token。
-   * 所以这里注册成功后再自动登录一次。
-   */
-  if (!token) {
     const loginRes: any = await api.login({
       username: form.username,
       password: form.password
     })
 
-    token = getToken(loginRes)
+    const token = getToken(loginRes)
+
+    if (!token) {
+      alert('注册成功，但自动登录失败，请手动登录')
+      mode.value = 'login'
+      return
+    }
+
+    saveLoginState(token, form.username)
+
+    alert('注册成功，已自动登录')
+    router.push('/app/diary')
+  } catch (e: any) {
+    console.error(e)
+
+    const msg =
+      e?.response?.data?.message ||
+      e?.response?.data?.error ||
+      e?.message ||
+      '注册失败，请稍后再试'
+
+    alert(msg)
+  } finally {
+    loading.value = false
   }
-
-  if (!token) {
-    alert('注册成功，但自动登录失败，请手动登录')
-    mode.value = 'login'
-    return
-  }
-
-  localStorage.setItem('token', token)
-
-  /**
-   * 注册用户第一次进入，可以直接去引导页。
-   * 如果你不想要引导页，可以改成：router.push('/app/diary')
-   */
-  router.push('/onboarding')
 }
 
 async function guestLogin() {
-  loading.value = true
-
-  const username = 'guest_' + Date.now()
-  const password = 'guest123456'
+  const guestUsername = `guest_${Date.now()}`
+  const guestPassword = 'guest123456'
 
   try {
-    let token = ''
+    loading.value = true
 
-    /**
-     * 1. 先自动注册一个游客账号
-     */
-    try {
-      const registerRes: any = await api.register({
-        username,
-        password
-      })
+    await api.register({
+      username: guestUsername,
+      password: guestPassword
+    })
 
-      token = getToken(registerRes)
-    } catch (e) {
-      console.log('游客注册失败，继续尝试登录')
-    }
+    const loginRes: any = await api.login({
+      username: guestUsername,
+      password: guestPassword
+    })
 
-    /**
-     * 2. 如果注册接口没有返回 token，就再登录一次
-     */
-    if (!token) {
-      const loginRes: any = await api.login({
-        username,
-        password
-      })
-
-      token = getToken(loginRes)
-    }
+    const token = getToken(loginRes)
 
     if (!token) {
       alert('游客登录失败：未获取到 token')
       return
     }
 
-    localStorage.setItem('token', token)
+    saveLoginState(token, guestUsername)
 
-    /**
-     * 3. 给游客保存一份默认资料
-     */
     try {
       await api.saveProfile({
         nickname: '游客',
@@ -245,17 +263,35 @@ async function guestLogin() {
         residentPersona: 'INFJ'
       })
     } catch (e) {
-      console.warn('游客资料保存失败，但不影响进入系统', e)
+      console.warn('游客默认资料保存失败，不影响登录', e)
     }
 
     router.push('/app/diary')
-  } catch (e) {
+  } catch (e: any) {
     console.error(e)
-    alert('游客登录失败，请检查后端是否启动')
+
+    const msg =
+      e?.response?.data?.message ||
+      e?.response?.data?.error ||
+      e?.message ||
+      '游客登录失败，请稍后再试'
+
+    alert(msg)
   } finally {
     loading.value = false
   }
 }
+
+function saveAuth(token: string, userKey: string) {
+  localStorage.setItem('token', token)
+  localStorage.setItem('moodboard_current_user', userKey || 'user')
+}
+
+function saveLoginState(token: string, userKey: string) {
+  localStorage.setItem('token', token)
+  localStorage.setItem('moodboard_current_user', userKey || 'user')
+}
+
 </script>
 
 <style scoped>

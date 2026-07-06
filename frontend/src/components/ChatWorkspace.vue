@@ -231,12 +231,21 @@ const personaDesc = computed(() => {
   return props.persona?.description || props.persona?.slogan || '以这个人格视角陪你对话。'
 })
 
+const currentUserKey = computed(() => {
+  return localStorage.getItem('moodboard_current_user') || 'guest'
+})
+
 const storageKey = computed(() => {
+  const userKey = currentUserKey.value
+
   if (isDaily.value) {
-    return 'moodboard_daily_chat_sessions'
+    return `moodboard_daily_chat_sessions_${userKey}`
   }
 
-  return `moodboard_persona_chat_sessions_${personaCode.value}`
+  const currentPersona: any = props.persona || {}
+  const personaCode = currentPersona.code || 'UNKNOWN'
+
+  return `moodboard_persona_chat_sessions_${personaCode}_${userKey}`
 })
 
 const activeSession = computed(() => {
