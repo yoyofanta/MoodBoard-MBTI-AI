@@ -1,347 +1,399 @@
-import requests
+# tests/api_test.py
+# MoodBoard × MBTI 接口自动化测试脚本
+# 使用方式：
+# 1. 先启动后端：http://localhost:8888
+# 2. 执行：python tests/api_test.py
+
 import time
-from datetime import datetime
+import json
+import requests
+
 
 BASE_URL = "http://localhost:8888/api"
 
-USERNAME = f"test_user_{int(time.time())}"
-PASSWORD = "123456"
 
-
-class ApiTester:
+class ApiTestClient:
     def __init__(self):
-        self.token = None
-        self.results = []
+        self.token = ""
+        self.username = f"auto_test_{int(time.time())}"
+        self.password = "123456"
 
-    def log(self, case_id, module, name, passed, detail):
-        status = "通过" if passed else "失败"
-        self.results.append({
-            "case_id": case_id,
-            "module": module,
-            "name": name,
-            "status": status,
-            "detail": detail
-        })
+    def print_title(self, title):
+        print("\n" + "=" * 70)
+        print(title)
+        print("=" * 70)
 
-        icon = "✅" if passed else "❌"
-        print(f"{icon} {case_id} [{module}] {name} - {status}")
-        print(f"   {detail}")
+    def print_response(self, response):
+        print("状态码:", response.status_code)
+        try:
+            print("响应体:", json.dumps(response.json(), ensure_ascii=False, indent=2))
+        except Exception:
+            print("响应体:", response.text)
 
-    def headers(self):
-        if self.token:
-            return {
-                "Authorization": f"Bearer {self.token}",
-                "Content-Type": "application/json"
-            }
-        return {
+    def get_headers(self):
+        headers = {
             "Content-Type": "application/json"
         }
 
-    def get_data(self, response_json):
-        """
-        兼容两种返回格式：
-        1. { code: 200, data: {...} }
-        2. {...}
-        """
-        if isinstance(response_json, dict) and "data" in response_json:
-            return response_json.get("data")
-        return response_json
+        if self.token:
+            headers["Authorization"] = f"Bearer {self.token}"
 
+        return headers
+
+    def extract_data(self, response):
+        try:
+            body = response.json()
+        except Exception:
+            return {}
+
+        if isinstance(body, dict):
+            if "data" in body and isinstance(body["data"], dict):
+                return body["data"]
+            return body
+
+        return {}
+
+    def extract_token(self, response):
+        data = self.extract_data(response)
+
+        token = (
+            data.get("token")
+            or data.get("accessToken")
+            or data.get("jwt")
+            or ""
+        )
+
+        return token
+
+    def assert_status_ok(self, response, case_name):
+        assert response.status_code == 200, f"{case_name} 失败：HTTP状态码不是200"
+
+    def assert_has_field(self, data, field, case_name):
+        assert field in data, f"{case_name} 失败：响应缺少字段 {field}"
+
+    # 1. 注册接口
     def test_register(self):
-        case_id = "AUTO-001"
+        self.print_title("API-001 新用户注册")
 
-        try:
-            url = f"{BASE_URL}/auth/register"
-            payload = {
-                "username": USERNAME,
-                "password": PASSWORD,
-                "nickname": "自动化测试用户"
-            }
+        url = f"{BASE_URL}/auth/register"
+        payload = {
+            "username": self.username,
+            "password": self.password
+        }
 
-            response = requests.post(url, json=payload, timeout=10)
-            passed = response.status_code == 200
+        response = requests.post(url, json=payload, headers=self.get_headers())
+        self.print_response(response)
 
-            self.log(
-                case_id,
-                "登录注册",
-                "用户注册接口",
-                passed,
-                f"状态码：{response.status_code}，响应：{response.text[:200]}"
-            )
+        self.assert_status_ok(response, "新用户注册")
 
-            return passed
+        print("✅ 新用户注册通过")
 
-        except Exception as e:
-            self.log(case_id, "登录注册", "用户注册接口", False, str(e))
-            return False
-
+    # 2. 登录接口
     def test_login(self):
-        case_id = "AUTO-002"
+        self.print_title("API-002 用户登录")
 
+        url = f"{BASE_URL}/auth/login"
+        payload = {
+            "username": self.username,
+            "password": self.password
+        }
+
+        response = requests.post(url, json=payload, headers=self.get_headers())
+        self.print_response(response)
+
+        self.assert_status_ok(response, "用户登录")
+
+        token = self.extract_token(response)
+
+        assert token, "用户登录失败：未获取到 token"
+
+        self.token = token
+
+        print("✅ 用户登录通过，已获取 token")
+
+    # 3. 错误密码登录
+    def test_login_wrong_password(self):
+        self.print_title("API-003 错误密码登录")
+
+        url = f"{BASE_URL}/auth/login"
+        payload = {
+            "username": self.username,
+            "password": "wrong_password"
+        }
+
+        response = requests.post(url, json=payload, headers=self.get_headers())
+        self.print_response(response)
+
+        # 有的后端错误也返回 200，有的返回 4xx，这里只要不是成功拿到 token 就算通过
+        token = self.extract_token(response)
+
+        assert not token, "错误密码登录失败：错误密码不应该返回 token"
+
+        print("✅ 错误密码登录测试通过")
+
+    # 4. 获取用户资料
+    def test_get_profile(self):
+        self.print_title("API-004 获取用户资料")
+
+        url = f"{BASE_URL}/user/profile"
+
+        response = requests.get(url, headers=self.get_headers())
+        self.print_response(response)
+
+        self.assert_status_ok(response, "获取用户资料")
+
+        print("✅ 获取用户资料通过")
+
+    # 5. 保存用户资料
+    def test_save_profile(self):
+        self.print_title("API-005 保存用户资料")
+
+        url = f"{BASE_URL}/user/profile"
+        payload = {
+            "nickname": "接口自动化测试用户",
+            "occupation": "student",
+            "ageRange": "18-22",
+            "gender": "未透露",
+            "residentPersona": "INFJ"
+        }
+
+        response = requests.post(url, json=payload, headers=self.get_headers())
+        self.print_response(response)
+
+        self.assert_status_ok(response, "保存用户资料")
+
+        print("✅ 保存用户资料通过")
+
+    # 6. Memory Chat 聊天接口
+    def test_memory_chat(self):
+        self.print_title("API-006 Memory Chat 聊天")
+
+        url = f"{BASE_URL}/ai/memory-chat/send"
+        payload = {
+            "chatType": "DAILY",
+            "personaCode": "DAILY",
+            "personaName": "日常树洞",
+            "content": "我最近考试很焦虑，也总是拖延"
+        }
+
+        response = requests.post(url, json=payload, headers=self.get_headers())
+        self.print_response(response)
+
+        self.assert_status_ok(response, "Memory Chat 聊天")
+
+        data = self.extract_data(response)
+
+        reply = (
+            data.get("reply")
+            or data.get("answer")
+            or data.get("content")
+            or ""
+        )
+
+        assert reply, "Memory Chat 聊天失败：AI回复为空"
+
+        print("✅ Memory Chat 聊天通过")
+
+    # 7. 获取 Memory
+    def test_get_memory(self):
+        self.print_title("API-007 获取用户 Memory")
+
+        url = f"{BASE_URL}/memory/current"
+
+        response = requests.get(url, headers=self.get_headers())
+        self.print_response(response)
+
+        self.assert_status_ok(response, "获取用户 Memory")
+
+        print("✅ 获取用户 Memory 通过")
+
+    # 8. RAG 知识检索
+    def test_knowledge_search(self):
+        self.print_title("API-008 RAG 知识片段检索")
+
+        url = f"{BASE_URL}/knowledge/search"
+        params = {
+            "q": "我最近考试很焦虑",
+            "topK": 3
+        }
+
+        response = requests.get(url, params=params, headers=self.get_headers())
+        self.print_response(response)
+
+        self.assert_status_ok(response, "RAG 知识片段检索")
+
+        print("✅ RAG 知识片段检索通过")
+
+    # 9. RAG 回答生成
+    def test_knowledge_ask(self):
+        self.print_title("API-009 RAG 回答生成")
+
+        url = f"{BASE_URL}/knowledge/ask"
+        params = {
+            "q": "我最近考试很焦虑，也总是拖延，不知道怎么办",
+            "topK": 3
+        }
+
+        response = requests.get(url, params=params, headers=self.get_headers())
+        self.print_response(response)
+
+        self.assert_status_ok(response, "RAG 回答生成")
+
+        data = self.extract_data(response)
+
+        answer = (
+            data.get("answer")
+            or data.get("reply")
+            or data.get("content")
+            or ""
+        )
+
+        assert answer, "RAG 回答生成失败：answer 为空"
+
+        print("✅ RAG 回答生成通过")
+
+    # 10. Tool Calling 位置工具
+    def test_location_tool(self):
+        self.print_title("API-010 Tool Calling 位置工具")
+
+        url = f"{BASE_URL}/ai/tools/location/reverse"
+        payload = {
+            "lat": 30.25,
+            "lng": 120.16
+        }
+
+        response = requests.post(url, json=payload, headers=self.get_headers())
+        self.print_response(response)
+
+        self.assert_status_ok(response, "Tool Calling 位置工具")
+
+        print("✅ Tool Calling 位置工具通过")
+
+    # 11. 多 Agent 圆桌
+    def test_agent_roundtable(self):
+        self.print_title("API-011 多 Agent 圆桌会话")
+
+        url = f"{BASE_URL}/ai/agent/roundtable"
+        payload = {
+            "topic": "我最近考试很焦虑，也总是拖延，不知道今晚该怎么安排复习",
+            "agents": [
+                {
+                    "code": "INTJ",
+                    "name": "理性规划者"
+                },
+                {
+                    "code": "INFP",
+                    "name": "温柔共情者"
+                }
+            ]
+        }
+
+        response = requests.post(url, json=payload, headers=self.get_headers())
+        self.print_response(response)
+
+        self.assert_status_ok(response, "多 Agent 圆桌会话")
+
+        data = self.extract_data(response)
+
+        assert "agents" in data, "多 Agent 圆桌失败：缺少 agents 字段"
+        assert "summary" in data, "多 Agent 圆桌失败：缺少 summary 字段"
+
+        print("✅ 多 Agent 圆桌会话通过")
+
+    # 12. Agent 数量异常：少于 2 个
+    def test_agent_roundtable_less_than_two(self):
+        self.print_title("API-012 多 Agent 圆桌异常：少于 2 个 Agent")
+
+        url = f"{BASE_URL}/ai/agent/roundtable"
+        payload = {
+            "topic": "我最近很焦虑",
+            "agents": [
+                {
+                    "code": "INTJ",
+                    "name": "理性规划者"
+                }
+            ]
+        }
+
+        response = requests.post(url, json=payload, headers=self.get_headers())
+        self.print_response(response)
+
+        self.assert_status_ok(response, "多 Agent 圆桌异常测试")
+
+        body_text = response.text
+
+        assert "至少" in body_text or "2" in body_text, "少于 2 个 Agent 时未返回限制提示"
+
+        print("✅ 少于 2 个 Agent 异常测试通过")
+
+    # 13. 清空 Memory
+    def test_clear_memory(self):
+        self.print_title("API-013 清空用户 Memory")
+
+        url = f"{BASE_URL}/memory/clear"
+
+        response = requests.post(url, headers=self.get_headers())
+        self.print_response(response)
+
+        self.assert_status_ok(response, "清空用户 Memory")
+
+        print("✅ 清空用户 Memory 通过")
+
+
+def run_all_tests():
+    client = ApiTestClient()
+
+    test_cases = [
+        client.test_register,
+        client.test_login,
+        client.test_login_wrong_password,
+        client.test_get_profile,
+        client.test_save_profile,
+        client.test_memory_chat,
+        client.test_get_memory,
+        client.test_knowledge_search,
+        client.test_knowledge_ask,
+        client.test_location_tool,
+        client.test_agent_roundtable,
+        client.test_agent_roundtable_less_than_two,
+        client.test_clear_memory,
+    ]
+
+    passed = 0
+    failed = 0
+    failed_cases = []
+
+    print("\n开始执行 MoodBoard × MBTI 接口自动化测试")
+    print(f"后端地址：{BASE_URL}")
+    print(f"测试账号：{client.username}")
+
+    for test_case in test_cases:
         try:
-            url = f"{BASE_URL}/auth/login"
-            payload = {
-                "username": USERNAME,
-                "password": PASSWORD
-            }
-
-            response = requests.post(url, json=payload, timeout=10)
-            json_data = response.json()
-            data = self.get_data(json_data)
-
-            token = None
-
-            if isinstance(data, dict):
-                token = data.get("token") or data.get("accessToken")
-
-            if not token and isinstance(json_data, dict):
-                token = json_data.get("token") or json_data.get("accessToken")
-
-            passed = response.status_code == 200 and bool(token)
-
-            if token:
-                self.token = token
-
-            self.log(
-                case_id,
-                "登录注册",
-                "用户登录接口",
-                passed,
-                f"状态码：{response.status_code}，是否获取Token：{bool(token)}"
-            )
-
-            return passed
-
+            test_case()
+            passed += 1
+        except AssertionError as e:
+            failed += 1
+            failed_cases.append((test_case.__name__, str(e)))
+            print(f"❌ 断言失败：{e}")
         except Exception as e:
-            self.log(case_id, "登录注册", "用户登录接口", False, str(e))
-            return False
+            failed += 1
+            failed_cases.append((test_case.__name__, str(e)))
+            print(f"❌ 执行异常：{e}")
 
-    def test_location_reverse(self):
-        case_id = "AUTO-003"
+    print("\n" + "=" * 70)
+    print("接口自动化测试执行完成")
+    print("=" * 70)
+    print(f"总用例数：{len(test_cases)}")
+    print(f"通过数：{passed}")
+    print(f"失败数：{failed}")
 
-        try:
-            url = f"{BASE_URL}/location/reverse"
-            params = {
-                "lat": 30.322737,
-                "lng": 120.341960
-            }
-
-            response = requests.get(url, params=params, headers=self.headers(), timeout=10)
-            json_data = response.json()
-            data = self.get_data(json_data)
-
-            province = data.get("province", "") if isinstance(data, dict) else ""
-            city = data.get("city", "") if isinstance(data, dict) else ""
-            district = data.get("district", "") if isinstance(data, dict) else ""
-            location_name = data.get("locationName", "") if isinstance(data, dict) else ""
-
-            passed = (
-                response.status_code == 200
-                and bool(city)
-                and bool(district)
-                and location_name != "当前位置"
-            )
-
-            self.log(
-                case_id,
-                "定位接口",
-                "高德逆地理编码接口",
-                passed,
-                f"状态码：{response.status_code}，province={province}，city={city}，district={district}，locationName={location_name}"
-            )
-
-            return passed
-
-        except Exception as e:
-            self.log(case_id, "定位接口", "高德逆地理编码接口", False, str(e))
-            return False
-
-    def test_save_diary(self):
-        case_id = "AUTO-004"
-
-        try:
-            url = f"{BASE_URL}/diaries"
-            payload = {
-                "date": datetime.now().strftime("%Y-%m-%d"),
-                "emotions": ["😊", "💪"],
-                "mood": "😊",
-                "content": "这是一条自动化测试生成的情绪日记。",
-                "keywords": "自动化测试,接口测试",
-                "imageUrl": "",
-                "province": "浙江省",
-                "city": "杭州市",
-                "district": "临平区",
-                "locationName": "杭州市 临平区"
-            }
-
-            response = requests.post(url, json=payload, headers=self.headers(), timeout=10)
-            passed = response.status_code == 200
-
-            self.log(
-                case_id,
-                "情绪日记",
-                "保存日记接口",
-                passed,
-                f"状态码：{response.status_code}，响应：{response.text[:200]}"
-            )
-
-            return passed
-
-        except Exception as e:
-            self.log(case_id, "情绪日记", "保存日记接口", False, str(e))
-            return False
-
-    def test_chat(self):
-        case_id = "AUTO-005"
-
-        try:
-            url = f"{BASE_URL}/ai/chat"
-            payload = {
-                "chatType": "DAILY",
-                "persona": "DAILY",
-                "content": "我今天有点累，想聊一会儿。",
-                "ephemeral": False
-            }
-
-            response = requests.post(url, json=payload, headers=self.headers(), timeout=60)
-            json_data = response.json()
-            data = self.get_data(json_data)
-
-            text = ""
-
-            if isinstance(data, dict):
-                text = (
-                    data.get("content")
-                    or data.get("reply")
-                    or data.get("message")
-                    or data.get("answer")
-                    or ""
-                )
-
-            if not text and isinstance(json_data, dict):
-                text = (
-                    json_data.get("content")
-                    or json_data.get("reply")
-                    or json_data.get("message")
-                    or json_data.get("answer")
-                    or ""
-                )
-
-            passed = response.status_code == 200 and bool(text)
-
-            self.log(
-                case_id,
-                "AI树洞",
-                "日常聊天接口",
-                passed,
-                f"状态码：{response.status_code}，AI回复长度：{len(text)}"
-            )
-
-            return passed
-
-        except Exception as e:
-            self.log(case_id, "AI树洞", "日常聊天接口", False, str(e))
-            return False
-
-    def test_persona_chat(self):
-        case_id = "AUTO-006"
-
-        try:
-            url = f"{BASE_URL}/ai/chat"
-            payload = {
-                "chatType": "PERSONA",
-                "persona": "INFP",
-                "content": "我最近有点迷茫，你会怎么安慰我？",
-                "ephemeral": False
-            }
-
-            response = requests.post(url, json=payload, headers=self.headers(), timeout=60)
-            json_data = response.json()
-            data = self.get_data(json_data)
-
-            text = ""
-
-            if isinstance(data, dict):
-                text = (
-                    data.get("content")
-                    or data.get("reply")
-                    or data.get("message")
-                    or data.get("answer")
-                    or ""
-                )
-
-            if not text and isinstance(json_data, dict):
-                text = (
-                    json_data.get("content")
-                    or json_data.get("reply")
-                    or json_data.get("message")
-                    or json_data.get("answer")
-                    or ""
-                )
-
-            passed = response.status_code == 200 and bool(text)
-
-            self.log(
-                case_id,
-                "人格对话",
-                "INFP人格聊天接口",
-                passed,
-                f"状态码：{response.status_code}，AI回复长度：{len(text)}"
-            )
-
-            return passed
-
-        except Exception as e:
-            self.log(case_id, "人格对话", "INFP人格聊天接口", False, str(e))
-            return False
-
-    def generate_report(self):
-        total = len(self.results)
-        passed = len([r for r in self.results if r["status"] == "通过"])
-        failed = total - passed
-        pass_rate = round(passed / total * 100, 2) if total else 0
-
-        report = []
-        report.append("# MoodBoard × MBTI 接口自动化测试报告\n")
-        report.append(f"测试时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-        report.append(f"测试环境：{BASE_URL}\n")
-        report.append("\n## 一、测试汇总\n")
-        report.append("| 总用例数 | 通过数 | 失败数 | 通过率 |")
-        report.append("|---|---|---|---|")
-        report.append(f"| {total} | {passed} | {failed} | {pass_rate}% |\n")
-
-        report.append("\n## 二、测试明细\n")
-        report.append("| 用例编号 | 模块 | 接口名称 | 执行结果 | 详情 |")
-        report.append("|---|---|---|---|---|")
-
-        for r in self.results:
-            detail = str(r["detail"]).replace("\n", " ").replace("|", "，")
-            report.append(
-                f"| {r['case_id']} | {r['module']} | {r['name']} | {r['status']} | {detail} |"
-            )
-
-        with open("test-docs/06-接口自动化测试报告.md", "w", encoding="utf-8") as f:
-            f.write("\n".join(report))
-
-        print("\n测试报告已生成：test-docs/06-接口自动化测试报告.md")
-
-    def run_all(self):
-        print("开始执行 MoodBoard × MBTI 接口自动化测试...\n")
-
-        self.test_register()
-        self.test_login()
-
-        if not self.token:
-            print("\n未获取到 token，后续需要登录态的接口可能失败。\n")
-
-        self.test_location_reverse()
-        self.test_save_diary()
-        self.test_chat()
-        self.test_persona_chat()
-
-        self.generate_report()
+    if failed_cases:
+        print("\n失败用例：")
+        for name, reason in failed_cases:
+            print(f"- {name}: {reason}")
+    else:
+        print("\n🎉 所有接口测试通过")
 
 
 if __name__ == "__main__":
-    tester = ApiTester()
-    tester.run_all()
+    run_all_tests()

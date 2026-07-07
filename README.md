@@ -399,8 +399,20 @@ persona_battle_message
 4. 16 人格展示不全
 原因：前端 agentOptions 只配置了 8 个。
 处理：补充完整 16 种 MBTI，并为中间区域增加独立滚动。
+
+
 ```
 
+## 测试与质量保障
+
+本项目围绕软件测试岗位补充了较完整的测试材料：
+
+- 编写测试计划，明确测试范围、测试方法和准出条件。
+- 设计功能测试用例，覆盖登录注册、情绪日记、AI聊天、RAG、Memory、Tool Calling、多Agent圆桌等模块。
+- 使用 Postman 和 Python requests 进行接口测试与接口自动化测试。
+- 使用 H2 Console 验证数据库写入、更新和查询结果。
+- 记录并修复注册自动登录失败、游客登录失败、AI聊天content为空、不同账号聊天记录未隔离、RAG接口异常、README敏感Key泄露等缺陷。
+- 针对 AI 应用补充专项测试，包括 Prompt、RAG、Memory、Tool Calling、多Agent编排和异常兜底。
 ---
 
 ---
