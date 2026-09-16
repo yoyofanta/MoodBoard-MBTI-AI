@@ -2,236 +2,177 @@
 
 ## 项目简介
 
-MoodBoard 是一个面向情绪记录和自我梳理场景的 Web 全栈课程项目。用户可以记录每日情绪、按不同时间维度查看日记，并通过 AI 树洞、MBTI 人格对话、RAG 知识问答、用户记忆和多 Agent 圆桌获得不同角度的回应。
+MoodBoard 是一个 Vue 3 + Spring Boot 的情绪记录与 AI 对话课程项目，支持情绪日记、AI 树洞、人格对话、轻量 RAG、Memory、多 Agent 圆桌和情绪漂流瓶。
 
-项目默认使用 mock AI，老师拿到代码后无需第三方 Key 即可启动和演示基础流程；如需验证真实模型或高德逆地理编码，可通过环境变量启用。
+## 功能
 
-## 核心功能
-
-- 用户注册、登录、游客账号流程及个人资料
-- 情绪日记新增、按日期读取、编辑、删除
-- 周、月、年日记视图及情绪统计展示
-- 日常树洞与 MBTI 人格聊天
-- 情绪漂流瓶和心灵盲盒
-- 自定义人格面具
-- 基于字符 Jaccard 相似度、标签加权和 TopK 的轻量 RAG
-- 数据库持久化用户 Memory，并在后续 Prompt 中注入
-- 2–4 个角色顺序发言的多 Agent 圆桌与综合总结
-- 浏览器定位及可选的高德逆地理编码
-- 广场帖子后端 API；当前活动前端页面未接入
+- 注册、登录、游客演示与个人资料引导
+- 情绪日记 Create / Read / Update / Delete，周/月/年视图
+- 仅允许今天及过去日期记录，禁止未来日期创建和导航
+- 日常树洞、人格对话、人格面具、心灵盲盒、Multi-Agent
+- 情绪漂流瓶：选择情绪、匿名内容、AI 温柔回复
+- RAG 知识问答、结构化 Memory 与 Prompt 注入
 
 ## 技术栈
 
-| 层级 | 技术 |
-| --- | --- |
-| 前端 | Vue 3、TypeScript、Vite、Vue Router、Axios、HTML/CSS |
-| 后端 | Java 17、Spring Boot 3.3.5、Spring Web、Spring Data JPA |
-| 数据库 | H2 文件数据库 |
-| AI | Java HttpClient、DeepSeek 兼容 Chat API、内置 mock 模式 |
-| 测试 | Spring Boot Test、JUnit 5、MockMvc、pytest、requests、vue-tsc |
-
-POM 中存在 MySQL 和 Redis 相关依赖，但当前运行配置使用 H2，代码中没有启用 Redis Repository，也没有配置 MySQL 数据源。
+- 前端：Vue 3、TypeScript、Vite、Vue Router、Axios
+- 后端：Java 17、Spring Boot、Spring Data JPA、H2
+- AI：Mock AI / DeepSeek
 
 ## 系统架构
 
 ```text
-Vue 3 前端
-    ↓ Axios / REST API
-Spring Boot Controller
-    ↓
-Service / Repository
-    ↓
-H2 数据库
-
-Service
-    ├─ mock / DeepSeek AI
-    ├─ 轻量 RAG
-    ├─ 用户 Memory
-    └─ 高德逆地理编码（可选）
+Vue/Vite ── Axios REST ── Spring Boot ── JPA ── H2
+                              ├─ Mock / DeepSeek
+                              ├─ Jaccard + 标签加权 RAG
+                              └─ Memory / Multi-Agent
 ```
-
-前端开发服务器通过 Vite 将 `/api` 代理到 `http://localhost:8888`。后端统一返回 `{ code, message, data? }`。
 
 ## 项目目录
 
 ```text
-MoodBoard-Complete/
-├─ backend/
-│  ├─ src/main/java/com/moodboard/
-│  │  ├─ controller/
-│  │  ├─ service/
-│  │  ├─ entity/
-│  │  └─ repository/
-│  ├─ src/main/resources/application.yml
-│  ├─ src/test/
-│  └─ pom.xml
-├─ frontend/
-│  ├─ src/
-│  │  ├─ api/
-│  │  ├─ components/
-│  │  ├─ data/
-│  │  └─ pages/
-│  ├─ package.json
-│  └─ vite.config.ts
-├─ tests/
-├─ docs/
-├─ .env.example
-└─ README.md
+backend/     Spring Boot 后端、实体、控制器、测试
+frontend/    Vue 3 前端
+tests/       pytest 接口测试
+docs/        项目文档与验收材料
 ```
 
-## 启动方式
+## 运行模式
 
-### 环境要求
+### AI 运行模式与真实 DeepSeek 配置
 
-- JDK 17 或兼容版本
-- Maven 3.9 或兼容版本
-- Node.js 18 或更高版本
-- npm
+当前提供三种真实运行方式：
 
-### 后端
+| 模式 | Spring Boot | DeepSeek Key | AI | 数据 | 用途 |
+| --- | --- | --- | --- | --- | --- |
+| Netlify Demo | 不需要 | 不需要 | Mock | localStorage | 在线展示 |
+| 本地 Mock | 需要 | 不需要 | Mock | H2 | 稳定完整演示 |
+| 本地 Real | 需要 | 需要 | DeepSeek | H2 | 真实 AI 验证 |
 
-```bash
+#### Netlify Demo Mode
+
+Netlify 当前只部署 Vue/Vite 前端，使用 `VITE_DEMO_MODE=true`，不启动 Spring Boot、不需要 DeepSeek Key，使用 Mock AI 和浏览器 localStorage，适合在线预览和答辩备用。当前版本尚未实现在线 BYOK（用户填写自己的 DeepSeek API Key）功能，也不能通过 Netlify 直接调用真实 DeepSeek。未来如需实现，必须额外部署安全后端、Serverless Function 或 API Proxy。
+
+#### 本地完整 Mock 模式
+
+架构为 Vue → REST API → Spring Boot → H2，设置 `VITE_DEMO_MODE=false`，不需要 DeepSeek Key，用于完整功能稳定演示。
+
+#### 本地 Real DeepSeek 模式
+
+架构为 Vue → REST API → Spring Boot → DeepSeek API。启动后端前设置：
+
+```powershell
+$env:DEEPSEEK_API_KEY="用户自己的 DeepSeek API Key"
+$env:AI_MODE="real"
+```
+
+然后按本 README 的本地完整模式启动后端；前端设置 `$env:VITE_DEMO_MODE="false"`。浏览器地址为 `http://localhost:5173`，后端地址为 `http://localhost:8888`。
+
+#### API Key 安全说明
+
+`DEEPSEEK_API_KEY` 只能由 Spring Boot 后端读取。禁止写入 Vue 源码、`VITE_` 环境变量、`application.yml` 真实值、README、`.env.example`、GitHub、Netlify 或公开截图。Vite 的 `VITE_` 变量会注入浏览器可访问的前端产物，不适合保存秘密；推荐使用操作系统环境变量。
+
+### 本地完整模式
+
+要求：JDK 17+、Maven 3.9+、Node.js 18+、npm。
+
+后端：
+
+```powershell
 cd backend
-mvn spring-boot:run
+mvn clean package
+$jar = Get-ChildItem .\target\*.jar |
+  Where-Object { $_.Name -notlike "*.original" } |
+  Select-Object -First 1
+java -jar $jar.FullName
 ```
 
-后端地址：`http://localhost:8888`
+后端地址：`http://localhost:8888`；H2 控制台：`http://localhost:8888/h2-console`。
 
-H2 控制台：`http://localhost:8888/h2-console`
+前端：
 
-```text
-JDBC URL: jdbc:h2:file:./data/moodboard;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE
-User Name: sa
-Password: 留空
-```
-
-### 前端
-
-```bash
+```powershell
 cd frontend
-npm install
+npm ci
+$env:VITE_DEMO_MODE="false"
 npm run dev
 ```
 
-前端开发地址：`http://localhost:5173`
+前端地址：`http://localhost:5173`。Vite 开发代理将 `/api` 转发到 8888 端口。
 
-正式构建：
+### Real DeepSeek 模式
 
-```bash
-npm run build
-```
-
-## AI 模式
-
-默认配置：
-
-```text
-AI_MODE=mock
-DEEPSEEK_API_KEY=
-```
-
-mock 模式不会调用真实 DeepSeek API。启用 real 模式时，在当前终端设置环境变量：
+启动后端前设置：
 
 ```powershell
+$env:DEEPSEEK_API_KEY="用户自己的 Key"
 $env:AI_MODE="real"
-$env:DEEPSEEK_API_KEY="<your-key>"
-cd backend
-mvn spring-boot:run
 ```
 
-可选变量包括 `AI_CHAT_URL`、`AI_MODEL`、`AI_TEMPERATURE` 和 `AI_TIMEOUT_SECONDS`。不要把真实 Key 写入仓库文件。
+API Key 只能放在后端环境变量，禁止写入源码、`VITE_` 前端变量或提交 GitHub。Real AI 依赖网络、Key 和外部服务；未设置时使用 Mock AI。
 
-## 高德地图
-
-浏览器负责获取经纬度，后端可使用高德 Web 服务完成逆地理编码：
+### Demo Mode
 
 ```powershell
-$env:AMAP_KEY="<your-key>"
+cd frontend
+npm ci
+$env:VITE_DEMO_MODE="true"
+npm run dev
 ```
 
-未配置 `AMAP_KEY` 时，接口返回安全兜底信息，页面可继续保存经纬度和日记内容，不会调用真实高德服务。
+Demo Mode 不依赖 Spring Boot，使用 Mock API 与浏览器 `localStorage`，用于 Netlify 和答辩备用。普通 Demo 用户的日记、Memory、Profile 和聊天数据按账号隔离；游客账号可以保留示例数据。Demo Mode 不等于正式后端部署。
 
-## 核心接口
+## 环境变量
 
-完整对照见 [API 审计](docs/api-audit.md)。
+| 变量 | 作用 |
+| --- | --- |
+| `VITE_DEMO_MODE` | 前端 Demo 开关，`true` 使用 Mock |
+| `VITE_API_BASE_URL` | 正式 API 地址；本地通常使用 `/api` 代理 |
+| `AI_MODE` | 后端 `mock` 或 `real` |
+| `DEEPSEEK_API_KEY` | 后端 DeepSeek Key，禁止放入前端 |
+| `AMAP_KEY` | 可选的后端高德逆地理编码 Key |
 
-```text
-POST   /api/auth/register
-POST   /api/auth/login
-GET    /api/user/profile
-POST   /api/user/profile
+## Netlify Demo
 
-POST   /api/diaries
-GET    /api/diaries/date
-GET    /api/diaries/week
-GET    /api/diaries/month
-GET    /api/diaries/year
-GET    /api/diaries/search
-POST   /api/diaries/from-battle
-PUT    /api/diaries/{id}
-DELETE /api/diaries/{id}
+Netlify 只部署 Vue/Vite 前端，不部署 Spring Boot。执行 `cd frontend; npm ci; $env:VITE_DEMO_MODE="true"; npm run build`，将 `frontend/dist` 发布到 Netlify。Demo 数据保存在浏览器 `localStorage`，普通用户按账号隔离，游客可保留示例资料/日记/Memory。README 不预置未确认的 Netlify URL；完整 CRUD、正式登录和 H2 数据库仍需要可访问的 Spring Boot 后端。
 
-POST   /api/ai/chat/send
-POST   /api/ai/memory-chat/send
-GET    /api/knowledge/search
-GET    /api/knowledge/ask
-GET    /api/memory/current
-POST   /api/memory/update
-POST   /api/memory/clear
-POST   /api/ai/tools/location/reverse
-POST   /api/ai/agent/roundtable
-```
+## 登录与用户数据
 
-## 真实实现说明
+后端使用随机 Token，并在内存中维护 Token → userId 映射；请求使用 `Authorization: Bearer <token>`。当前不是 JWT，JWT/Redis 仅属于未来优化方向。
 
-### RAG
+- 默认登录和注册后的当前会话使用 `sessionStorage`
+- 勾选“记住我”后才使用 `localStorage`
+- 注册流程：注册 → 当前会话自动登录 → onboarding → 填写资料 → 保存 → 日记主页
+- 普通新用户不会自动生成 Mooder、student、18-22、INFJ；游客 Demo 可保留示例 Profile
+- Demo 业务数据使用按用户区分的 `moodboard_demo_<user>_...` key；退出登录只清理认证信息
 
-`KnowledgeBaseService` 从 H2 读取知识片段，用字符集合 Jaccard 相似度计算基础分数；查询直接命中标签时，每个标签增加 0.15 权重；随后按分数降序返回 TopK。检索结果会被拼接进 RAG Prompt。当前没有 Embedding 或向量数据库。
+## AI 实现
 
-### Memory
-
-`user_memory` 表保存最近情绪摘要、最近人格、最近对话摘要、上一次问题和回答。系统通过规则提取有限的情绪关键词，并在下一次 Memory Chat、RAG 或 Agent 圆桌中构造文本 Prompt。它不是通用语义记忆或向量记忆系统。
-
-### Multi-Agent
-
-`AgentRoundtableService` 按用户选择的 2–4 个 Agent 顺序调用 `MemoryChatService`。后一个 Agent 的输入中包含前面 Agent 的回复，最后由本地代码生成综合摘要并更新用户 Memory。活动前端将圆桌会话保存在按用户区分的 localStorage 中。
-
-### 图片
-
-当前日记编辑器支持选择图片并生成本地预览，但没有图片上传 API。刷新后的图片持久化不应视为已实现。
+- RAG：字符集合 Jaccard 相似度 + 标签加权 + TopK，不是向量数据库。
+- Memory：结构化字段持久化 + Prompt 注入。
+- Multi-Agent：2～4 个角色顺序调用，后续 Agent 可以读取前序回复。
+- 情绪漂流瓶：复用日记 12 种情绪，保存 `moodEmoji`、`moodLabel`、匿名正文、用户和创建时间；AI 根据情绪与正文生成回复，Demo 按用户保存。
 
 ## 测试
 
-截至 2026-09-13 的真实自动化结果：
-
-- `npm run build`：成功，包含 vue-tsc 与 Vite production build。
-- `mvn test`：成功，1 个日记生命周期集成测试通过。
-- `mvn package`：成功。
-- `py -m pytest tests/test_api_pytest.py -q`：`13 passed in 0.47s`。
-
-功能测试表共有 88 条有效用例，其中 24 条有执行证据：23 条通过、1 条失败、64 条未执行；已执行通过率 95.8%。日记删除和 Multi-Agent 圆桌已完成人工回归并通过。BUG-002 仍需 real DeepSeek 验证，低优先级用例仍有未执行项。
-
-相关材料：
-
-- [测试材料审计](docs/test-material-audit.md)
-- [测试总结](docs/04-测试总结.md)
-- [最终人工验收清单](docs/final-manual-checklist.md)
-
-## 主要特色
-
-- Vue 与 Spring Boot 构成完整前后端 REST 架构
-- 情绪日记支持日、周、月、年多个时间维度
-- 默认 mock、可选 real 的 AI 双模式
-- 无额外向量服务依赖的轻量 RAG
-- 基于 JPA 的用户 Memory 持久化与 Prompt 注入
-- 带上下文传递的顺序多 Agent 协作
-- JUnit、pytest 和前端正式构建组成的可重复验证基线
+- 功能测试：88 条总用例，24 条已执行，23 条通过，64 条未执行，95.8%
+- Bug：14；10 已关闭，3 已修复，1 待回归
+- pytest：13 passed
+- `npm run build`：成功
+- `mvn test`：成功
 
 ## 已知限制
 
-- 身份认证使用内存 token，密码未做生产级哈希，不适用于正式生产环境。
-- 默认数据库是本地 H2。
-- 图片仅支持本地预览，未实现上传持久化。
-- RAG 是字符相似度与标签加权，不是语义向量检索。
-- real AI 和真实高德能力依赖外部服务与用户自行提供的 Key。
-- 大部分浏览器功能用例尚待人工执行。
+- H2 当前用于本地课程项目。
+- Token → userId 映射当前保存在后端内存，重启后失效。
+- Real AI 依赖网络、API Key 和外部服务。
+- RAG 当前不是向量检索。
+- Netlify 不是 Spring Boot 正式部署；Demo 使用 localStorage。
+- 图片尚未形成完整后端上传服务，仅支持本地预览。
+
+## 团队分工
+
+- 潘子彤：组长 / 后端
+- 安姣凝：前端
+- 张越：AI
+- 开发周期：1 个月（4 周）

@@ -73,3 +73,19 @@
 - 核心浏览器人工流程已完成，日记删除和 Multi-Agent 均通过。
 - BUG-002 仍需 real DeepSeek 验证。
 - 最终冻结日期：2026-09-13。
+
+## 9 AI 运行模式与配置安全设计
+
+为兼顾答辩稳定性与真实 AI 调用，MoodBoard 设计了 Demo、Mock 和 Real 三种运行方式。Netlify 在线版本仅部署 Vue/Vite 前端，通过 `VITE_DEMO_MODE=true` 使用 Mock AI 与浏览器本地数据完成演示；由于 Spring Boot 后端未部署到 Netlify，该版本暂不支持真实 DeepSeek 调用，当前也尚未实现在线 BYOK（用户自带 API Key）。本地完整模式通过 REST API 连接 Spring Boot：Mock 模式使用 H2 并不需要外部密钥，Real 模式则由 Spring Boot 调用 DeepSeek API，并通过 `AI_MODE=real` 启用。
+
+真实 API Key 通过操作系统环境变量 `DEEPSEEK_API_KEY` 注入后端。前端环境变量并不等价于服务端秘密变量，Vite 中以 `VITE_` 开头的变量会在构建过程中注入前端代码，因此不能用于保存 DeepSeek API Key。MoodBoard 将真实 API Key 限定在 Spring Boot 后端环境变量中，由后端负责调用第三方模型服务，避免在浏览器端暴露凭据。
+
+为说明不同运行环境下的系统能力差异，三种运行模式的配置与用途如表 9-1 所示。
+
+| 运行模式 | 是否需要 Spring Boot | 是否需要 DeepSeek API Key | AI 类型 | 数据存储 | 主要用途 |
+| --- | --- | --- | --- | --- | --- |
+| Netlify Demo | 否 | 否 | Mock | localStorage | 在线展示与答辩备用 |
+| 本地 Mock | 是 | 否 | Mock | H2 | 完整稳定演示 |
+| 本地 Real | 是 | 是 | DeepSeek | H2 | 真实 AI 功能验证 |
+
+未来可将 Spring Boot 部署至云服务器，或增加 Serverless/API Proxy，使 Netlify 在线版本能够安全调用真实模型，并进一步实现 BYOK 模式；以上均属于未来规划，尚未在当前版本实现。
