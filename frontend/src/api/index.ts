@@ -1,4 +1,7 @@
 import axios from 'axios'
+import { demoApi } from './demo'
+
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
 
 
 /**
@@ -9,7 +12,7 @@ import axios from 'axios'
  *    baseURL: 'http://localhost:8888/api'
  */
 const http = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
   timeout: 120000
 })
 
@@ -64,7 +67,7 @@ http.interceptors.response.use(
   }
 )
 
-export const api = {
+const realApi = {
   /**
    * =========================
    * 登录注册
@@ -237,17 +240,6 @@ export const api = {
 
   /**
    * =========================
-   * 旧版多人格对战接口
-   * 如果你已经不用 PersonaBattlePanel.vue，可以暂时不用这个。
-   * 留着是为了兼容旧代码，避免某些页面还在调用 startPersonaBattle。
-   * =========================
-   */
-
-  startPersonaBattle: (data: any) =>
-    http.post('/persona-battle/start', data),
-
-  /**
-   * =========================
    * 定位 / 逆地理编码
    * =========================
    */
@@ -259,19 +251,6 @@ export const api = {
         lng
       }
     }),
-
-  /**
-   * =========================
-   * 广场 / 匿名发布
-   * 如果你的后端没有这些接口，前端不用调用就没事。
-   * =========================
-   */
-
-  plazaList: () =>
-    http.get('/plaza'),
-
-  publishToPlaza: (data: any) =>
-    http.post('/plaza/publish', data),
 
   searchKnowledge: (q: string, topK = 3) =>
   http.get('/knowledge/search', {
@@ -304,8 +283,10 @@ sendMemoryChat: (data: any) =>
 callLocationTool: (data: { lat: number; lng: number }) =>
   http.post('/ai/tools/location/reverse', data),
 
-runAgentRoundtable: (data: any) =>
-  http.post('/ai/agent/roundtable', data),
+  runAgentRoundtable: (data: any) =>
+    http.post('/ai/agent/roundtable', data),
 }
+
+export const api = DEMO_MODE ? demoApi : realApi
 
 export default api

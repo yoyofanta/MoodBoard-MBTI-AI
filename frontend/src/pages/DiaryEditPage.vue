@@ -157,6 +157,15 @@
       >
         {{ saving ? '保存中...' : '保存日记' }}
       </button>
+
+      <button
+        v-if="form.id"
+        class="delete-diary-btn"
+        :disabled="saving || deleting"
+        @click="deleteDiary"
+      >
+        {{ deleting ? '删除中...' : '删除这篇日记' }}
+      </button>
     </section>
   </main>
 </template>
@@ -165,6 +174,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '../api'
+import { isFutureDate, localDateString } from '../utils/date'
 
 type EmotionOption = {
   emoji: string
@@ -192,6 +202,7 @@ const emotionOptions: EmotionOption[] = [
 const selectedEmotions = ref<EmotionOption[]>([])
 const emotionError = ref('')
 const saving = ref(false)
+const deleting = ref(false)
 const locating = ref(false)
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const imagePreview = ref('')
@@ -211,7 +222,7 @@ const form = reactive({
 
 const diaryDate = computed(() => {
   const date = route.query.date as string | undefined
-  return date || formatDate(new Date())
+  return date || localDateString()
 })
 
 const selectedEmotionLabels = computed(() => {
@@ -223,6 +234,11 @@ const selectedEmotionEmojis = computed(() => {
 })
 
 onMounted(() => {
+  if (isFutureDate(diaryDate.value)) {
+    alert('暂不支持记录未来日期。')
+    router.push('/app/diary')
+    return
+  }
   loadDiary()
 })
 
@@ -498,6 +514,28 @@ async function saveDiary() {
   }
 }
 
+async function deleteDiary() {
+  if (!form.id || deleting.value) {
+    return
+  }
+
+  if (!confirm('确定要删除这篇日记吗？删除后无法恢复。')) {
+    return
+  }
+
+  deleting.value = true
+
+  try {
+    await api.deleteDiary(form.id)
+    router.push('/app/diary')
+  } catch (e) {
+    console.error('删除日记失败：', e)
+    alert('删除失败，请稍后重试')
+  } finally {
+    deleting.value = false
+  }
+}
+
 function goBack() {
   router.push('/app/diary')
 }
@@ -506,7 +544,7 @@ function formatDate(value: string | Date) {
   const date = value instanceof Date ? value : new Date(value)
 
   if (Number.isNaN(date.getTime())) {
-    return new Date().toISOString().slice(0, 10)
+    return localDateString()
   }
 
   const year = date.getFullYear()
@@ -823,6 +861,22 @@ function formatDate(value: string | Date) {
 }
 
 .save-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.delete-diary-btn {
+  width: 100%;
+  margin-top: 12px;
+  height: 58px;
+  border-radius: 999px;
+  background: #f8e2df;
+  color: #b65f56;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.delete-diary-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }

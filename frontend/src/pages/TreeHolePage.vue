@@ -615,7 +615,8 @@ const ChatInput = defineComponent({
   display: flex;
   flex-direction: column;
   gap: 10px;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .back-btn {

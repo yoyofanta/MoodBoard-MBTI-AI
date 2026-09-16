@@ -70,12 +70,16 @@
         </div>
 
         <div class="session-list">
-          <button
+          <div
             v-for="session in sessions"
             :key="session.id"
             class="session-item"
             :class="{ active: session.id === activeSessionId }"
             @click="activeSessionId = session.id"
+            role="button"
+            tabindex="0"
+            @keydown.enter="activeSessionId = session.id"
+            @keydown.space.prevent="activeSessionId = session.id"
           >
             <div class="session-main">
               <p class="session-title">
@@ -100,7 +104,7 @@
             <button class="delete-btn" @click.stop="deleteSession(session.id)">
               ×
             </button>
-          </button>
+          </div>
         </div>
       </aside>
 

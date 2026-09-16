@@ -55,7 +55,7 @@
             {{ periodTitle }}
           </div>
 
-          <button class="circle-btn" @click="nextPeriod">
+          <button class="circle-btn" :disabled="!canGoNextPeriod" @click="nextPeriod">
             ›
           </button>
         </div>
@@ -209,13 +209,15 @@
             class="month-day"
             :class="{
               muted: !day.inCurrentMonth,
+              future: isFutureDate(day.date, todayString),
               today: day.date === todayString,
               hasDiary: getDiary(day.date)
             }"
+            :disabled="isFutureDate(day.date, todayString)"
             @click="openEditor(day.date)"
           >
-            <span class="month-day-num">{{ day.day }}</span>
-            <span class="month-emoji">
+            <span v-if="!isFutureDate(day.date, todayString)" class="month-day-num">{{ day.day }}</span>
+            <span v-if="!isFutureDate(day.date, todayString)" class="month-emoji">
               {{ getDiaryEmojis(day.date) || '' }}
             </span>
           </button>
@@ -315,6 +317,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '../api'
+import { isFutureDate, localDateString } from '../utils/date'
 
 type ViewMode = 'week' | 'month' | 'year'
 
@@ -358,7 +361,7 @@ const currentDate = ref(new Date())
 const diaries = ref<DiaryEntry[]>([])
 const loading = ref(false)
 
-const todayString = formatDate(new Date())
+const todayString = localDateString()
 
 const emotionOptions: EmotionOption[] = [
   { emoji: '😊', label: '开心', color: '#F6C76A' },
@@ -395,7 +398,8 @@ const periodTitle = computed(() => {
 
   if (viewMode.value === 'week') {
     const days = getWeekDays(currentDate.value)
-    return `${days[0].date} 至 ${days[6].date}`
+    const visibleDays = days.filter(day => !isFutureDate(day.date, todayString))
+    return `${visibleDays[0].date} 至 ${visibleDays[visibleDays.length - 1].date}`
   }
 
   if (viewMode.value === 'month') {
@@ -406,7 +410,7 @@ const periodTitle = computed(() => {
 })
 
 const weekDays = computed(() => {
-  return getWeekDays(currentDate.value)
+  return getWeekDays(currentDate.value).filter(day => !isFutureDate(day.date, todayString))
 })
 
 const monthDays = computed(() => {
@@ -415,7 +419,7 @@ const monthDays = computed(() => {
 
 const monthChartDays = computed(() => {
   return monthDays.value
-    .filter(day => day.inCurrentMonth)
+    .filter(day => day.inCurrentMonth && !isFutureDate(day.date, todayString))
     .map(day => {
       const entry = getDiary(day.date)
       const emotions = entry ? getEntryEmotionList(entry) : []
@@ -432,13 +436,14 @@ const monthChartDays = computed(() => {
 
 const yearChartMonths = computed(() => {
   const year = currentDate.value.getFullYear()
+  const maxMonth = year === Number(todayString.slice(0, 4)) ? Number(todayString.slice(5, 7)) : 12
 
-  return Array.from({ length: 12 }).map((_, index) => {
+  return Array.from({ length: maxMonth }).map((_, index) => {
     const month = index + 1
     const monthText = `${year}-${String(month).padStart(2, '0')}`
 
     const monthEntries = diaries.value.filter(item => {
-      return getDiaryDate(item).startsWith(monthText)
+      return getDiaryDate(item).startsWith(monthText) && !isFutureDate(getDiaryDate(item), todayString)
     })
 
     const emotions = monthEntries.flatMap(item => getEntryEmotionList(item))
@@ -455,12 +460,13 @@ const yearChartMonths = computed(() => {
 const yearMonths = computed(() => {
   const year = currentDate.value.getFullYear()
 
-  return Array.from({ length: 12 }).map((_, index) => {
+  const maxMonth = year === Number(todayString.slice(0, 4)) ? Number(todayString.slice(5, 7)) : 12
+  return Array.from({ length: maxMonth }).map((_, index) => {
     const month = index + 1
     const monthText = `${year}-${String(month).padStart(2, '0')}`
 
     const items = diaries.value.filter(item => {
-      return getDiaryDate(item).startsWith(monthText)
+      return getDiaryDate(item).startsWith(monthText) && !isFutureDate(getDiaryDate(item), todayString)
     })
 
     const emojis = items
@@ -482,7 +488,7 @@ const yearMonths = computed(() => {
 
 const recentDiaries = computed(() => {
   return [...diaries.value]
-    .filter(item => getDiaryDate(item))
+    .filter(item => getDiaryDate(item) && !isFutureDate(getDiaryDate(item), todayString))
     .sort((a, b) => {
       return getDiaryDate(b).localeCompare(getDiaryDate(a))
     })
@@ -508,6 +514,11 @@ function switchView(mode: ViewMode) {
 }
 
 function openEditor(date: string) {
+  if (isFutureDate(date, todayString)) {
+    alert('暂不支持记录未来日期。')
+    return
+  }
+
   router.push({
     path: '/app/diary/edit',
     query: {
@@ -540,6 +551,8 @@ function prevPeriod() {
 }
 
 function nextPeriod() {
+  if (!canGoNextPeriod.value) return
+
   const next = new Date(currentDate.value)
 
   if (viewMode.value === 'week') {
@@ -553,6 +566,14 @@ function nextPeriod() {
   currentDate.value = next
   loadDiaries()
 }
+
+const canGoNextPeriod = computed(() => {
+  const next = new Date(currentDate.value)
+  if (viewMode.value === 'week') next.setDate(next.getDate() + 7)
+  else if (viewMode.value === 'month') next.setMonth(next.getMonth() + 1)
+  else next.setFullYear(next.getFullYear() + 1)
+  return !isFutureDate(formatDate(next), todayString)
+})
 
 /**
  * 关键修复：
@@ -870,7 +891,7 @@ function formatDate(value: Date | string) {
   const date = value instanceof Date ? value : new Date(value)
 
   if (Number.isNaN(date.getTime())) {
-    return new Date().toISOString().slice(0, 10)
+    return localDateString()
   }
 
   const year = date.getFullYear()
@@ -1009,6 +1030,11 @@ function formatDate(value: Date | string) {
   color: #7b6046;
   font-size: 28px;
   cursor: pointer;
+}
+
+.circle-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .period-title {
@@ -1252,6 +1278,15 @@ function formatDate(value: Date | string) {
 
 .month-day:hover {
   background: #f0e7db;
+}
+
+.month-day.future {
+  background: transparent;
+  cursor: default;
+}
+
+.month-day.future:hover {
+  background: transparent;
 }
 
 .month-day.muted {

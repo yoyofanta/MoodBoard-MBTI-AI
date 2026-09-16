@@ -30,7 +30,7 @@ Thumbs.db
 
 # H2 database files
 backend/data/
-data/
+/data/
 *.db
 *.mv.db
 *.trace.db
@@ -51,3 +51,6 @@ start-backend-deepseek.ps1
 ~$*.xlsx
 ~$*.docx
 ~$*.pptx
+
+dist-submission/
+dist-submission-root/
