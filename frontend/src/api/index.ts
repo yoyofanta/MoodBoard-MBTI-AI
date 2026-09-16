@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { demoApi } from './demo'
+import { getToken } from '../utils/authStorage'
 
 const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
 
@@ -21,7 +22,7 @@ const http = axios.create({
  */
 http.interceptors.request.use(
   config => {
-    const token = localStorage.getItem('token')
+    const token = getToken()
 
     if (token) {
       config.headers.Authorization = token.startsWith('Bearer ')

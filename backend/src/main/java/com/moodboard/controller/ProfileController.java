@@ -21,7 +21,7 @@ public class ProfileController {
         Long userId = authService.currentUserId(auth);
         UserProfile profile = profileRepo.findByUserId(userId).orElseGet(() -> {
             UserProfile p = new UserProfile();
-            p.userId = userId; p.nickname = "Mooder"; p.occupation = "student"; p.ageRange = "18-22"; p.gender = "未透露"; p.residentPersona = "INFJ";
+            p.userId = userId;
             return p;
         });
         return R.ok(profile);
@@ -32,11 +32,11 @@ public class ProfileController {
         Long userId = authService.currentUserId(auth);
         UserProfile p = profileRepo.findByUserId(userId).orElseGet(UserProfile::new);
         p.userId = userId;
-        p.nickname = MapUtil.str(body, "nickname", "Mooder");
-        p.occupation = MapUtil.str(body, "occupation", "student");
-        p.gender = MapUtil.str(body, "gender", "未透露");
-        p.ageRange = MapUtil.str(body, "ageRange", "18-22");
-        p.residentPersona = MapUtil.str(body, "residentPersona", "INFJ");
+        p.nickname = MapUtil.str(body, "nickname", "");
+        p.occupation = MapUtil.str(body, "occupation", "");
+        p.gender = MapUtil.str(body, "gender", "");
+        p.ageRange = MapUtil.str(body, "ageRange", "");
+        p.residentPersona = MapUtil.str(body, "residentPersona", "");
         p.updatedAt = LocalDateTime.now();
         return R.ok(profileRepo.save(p));
     }

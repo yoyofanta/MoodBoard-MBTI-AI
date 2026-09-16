@@ -42,6 +42,7 @@ public class DriftBottleController {
 
         String content = MapUtil.str(body, "content", "");
         String moodEmoji = MapUtil.str(body, "moodEmoji", "🫧");
+        String moodLabel = MapUtil.str(body, "moodLabel", "");
 
         if (content.isBlank()) {
             throw new RuntimeException("请先写下你的心情");
@@ -53,7 +54,7 @@ public class DriftBottleController {
                 prompt,
                 List.of(Map.of(
                         "role", "user",
-                        "content", "我的匿名心情漂流瓶是：" + content
+                        "content", "我的匿名心情是「" + moodLabel + "」" + moodEmoji + "，漂流瓶内容是：" + content
                 ))
         );
 
@@ -61,13 +62,14 @@ public class DriftBottleController {
         bottle.userId = userId;
         bottle.content = content;
         bottle.moodEmoji = moodEmoji;
+        bottle.moodLabel = moodLabel;
         bottle.aiEcho = aiEcho;
 
         bottleRepo.save(bottle);
 
         return R.ok(Map.of(
                 "bottle", bottle,
-                "aiEcho", aiEcho
+                "aiEcho", aiEcho, "content", content, "moodEmoji", moodEmoji, "moodLabel", moodLabel
         ));
     }
 }

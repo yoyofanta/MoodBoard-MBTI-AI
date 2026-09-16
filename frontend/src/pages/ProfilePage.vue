@@ -34,6 +34,7 @@ import { officialPersonas as personas } from '../data/personas'
 import KnowledgeWorkspace from '../components/KnowledgeWorkspace.vue'
 import MemoryPanel from '../components/MemoryPanel.vue'
 import ToolCallingPanel from '../components/ToolCallingPanel.vue'
+import { clearAuth } from '../utils/authStorage'
 //import AgentRoundtablePanel from '../components/AgentRoundtablePanel.vue'
 
 const router = useRouter()
@@ -43,5 +44,5 @@ const persona = computed(() => personas.find(p => p.code === form.residentPerson
 onMounted(load)
 async function load(){ const res:any = await api.getProfile(); Object.assign(form, res.data); const cp:any = await api.customPersonas(); custom.value = cp.data }
 async function save(){ await api.saveProfile(form); alert('保存成功') }
-function logout(){ localStorage.removeItem('token'); router.push('/login') }
+function logout(){ clearAuth(); router.push('/login') }
 </script>

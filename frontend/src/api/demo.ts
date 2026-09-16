@@ -1,4 +1,5 @@
 import { localDateString } from '../utils/date'
+import { getCurrentUser } from '../utils/authStorage'
 
 type DemoResponse = { data: any }
 
@@ -46,7 +47,7 @@ const knowledge = [
 const demoStorageVersion = 'moodboard_demo_storage_v2'
 
 function currentUserKey() {
-  const raw = localStorage.getItem('moodboard_current_user') || 'guest'
+  const raw = getCurrentUser() || 'guest'
   return raw.replace(/[^a-zA-Z0-9_-]/g, '_')
 }
 
@@ -66,6 +67,7 @@ function memoryKey() {
 function profileKey() {
   return `moodboard_demo_${currentUserKey()}_profile`
 }
+function bottleKey() { return `moodboard_demo_${currentUserKey()}_bottles` }
 
 function migrateLegacyDemoStorage() {
   if (localStorage.getItem(demoStorageVersion) === '2') {
@@ -186,7 +188,11 @@ export const demoApi: any = {
   createChatSession: async () => response({ sessionId: Date.now() }),
   sendChat: async (data: any) => response({ sessionId: data.sessionId || Date.now(), reply: chatReply(data.content, data.persona) }),
   clearChatMessages: async () => response({ cleared: true }),
-  throwDriftBottle: async () => response({ reply: '我在听。你可以慢慢说，不需要组织得很完整。' }),
+  throwDriftBottle: async (data: any) => {
+    const item = { id: Date.now(), content: data.content, moodEmoji: data.moodEmoji, moodLabel: data.moodLabel, aiEcho: '我在听。你可以慢慢说，不需要组织得很完整。', createdAt: new Date().toISOString() }
+    const items = JSON.parse(localStorage.getItem(bottleKey()) || '[]'); items.push(item); localStorage.setItem(bottleKey(), JSON.stringify(items))
+    return response(item)
+  },
   drawBlindBox: async () => response({ persona: 'INFJ', topic: '今天你希望被怎样安慰？' }),
   startBlindBox: async (data: any) => response({ blindBoxId: Date.now(), roundIndex: 1, reply: `我是 ${data.persona}，我们可以从“${data.topic}”开始聊。` }),
   replyBlindBox: async (data: any) => response({ roundIndex: (data.roundIndex || 1) + 1, finished: false, reply: '我在听。你可以继续说说刚才那份感受。' }),

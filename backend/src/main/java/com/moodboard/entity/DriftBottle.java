@@ -13,6 +13,7 @@ public class DriftBottle {
     public Long userId;
 
     public String moodEmoji;
+    public String moodLabel;
 
     @Column(columnDefinition = "TEXT")
     public String content;

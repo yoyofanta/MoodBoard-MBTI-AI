@@ -4,6 +4,9 @@ import LoginPage from './pages/LoginPage.vue'
 import OnboardingPage from './pages/OnboardingPage.vue'
 import MainLayout from './pages/MainLayout.vue'
 import DiaryEditPage from './pages/DiaryEditPage.vue'
+import { getToken, migrateLegacyAuth } from './utils/authStorage'
+
+migrateLegacyAuth()
 
 const routes: RouteRecordRaw[] = [
   {
@@ -56,10 +59,14 @@ const router = createRouter({
 })
 
 router.beforeEach((to) => {
-  const token = localStorage.getItem('token')
+  const token = getToken()
 
   if (!token && to.path !== '/login') {
     return '/login'
+  }
+
+  if (token && sessionStorage.getItem('moodboard_onboarding_pending') === '1' && to.path !== '/onboarding') {
+    return '/onboarding'
   }
 
   if (token && to.path === '/login') {

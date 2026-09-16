@@ -85,15 +85,16 @@
         </p>
       </div>
 
+      <p class="mb-3 text-sm font-medium text-[#6E5741]">选择此刻的心情</p>
       <div class="mb-4 flex flex-wrap gap-2">
         <button
-          v-for="e in bottleMoods"
-          :key="e"
-          class="rounded-2xl bg-[#F8F4ED] px-4 py-3 text-2xl transition active:scale-95"
-          :class="bottleMood === e ? 'bg-[#EADBC8]' : ''"
+          v-for="e in emotionOptions"
+          :key="e.emoji"
+          class="rounded-2xl bg-[#F8F4ED] px-3 py-2 text-sm transition active:scale-95"
+          :class="bottleMood?.emoji === e.emoji ? 'bg-[#EADBC8] ring-2 ring-[#C3AB89]' : ''"
           @click="bottleMood = e"
         >
-          {{ e }}
+          {{ e.emoji }} {{ e.label }}
         </button>
       </div>
 
@@ -116,6 +117,8 @@
         class="mt-5 rounded-[28px] bg-[#F1E7D7] p-5 text-sm leading-7 text-[#6E5741]"
       >
         <p class="font-semibold">漂流瓶回信</p>
+        <p v-if="bottleResult.moodLabel" class="mt-2">{{ bottleResult.moodEmoji }} {{ bottleResult.moodLabel }}</p>
+        <p v-if="bottleResult.content" class="mt-1">“{{ bottleResult.content }}”</p>
         <p class="mt-2">AI：{{ bottleResult.aiEcho }}</p>
       </div>
     </section>
@@ -187,6 +190,7 @@
 import { computed, defineComponent, h, onMounted, ref } from 'vue'
 import { officialPersonas } from '../data/personas'
 import { api } from '../api'
+import { emotionOptions } from '../data/emotions'
 import PersonaBattleWorkspace from '../components/PersonaBattleWorkspace.vue'
 import CustomPersonaEditor from '../components/CustomPersonaEditor.vue'
 import BlindBoxWorkspace from '../components/BlindBoxWorkspace.vue'
@@ -217,8 +221,7 @@ const dailySessionId = ref<number | null>(null)
 const personaSessionId = ref<number | null>(null)
 
 const bottleText = ref('')
-const bottleMood = ref('🫧')
-const bottleMoods = ['🫧', '😢', '😌', '😊', '💪', '❤️']
+const bottleMood = ref<any>(null)
 const bottleResult = ref<any>(null)
 const bottleLoading = ref(false)
 
@@ -289,6 +292,7 @@ function openDailyChat() {
 function openBottle() {
   view.value = 'dailyBottle'
   bottleResult.value = null
+  bottleMood.value = null
 }
 
 function openBattle() {
@@ -420,8 +424,12 @@ async function clearCurrentSession() {
 }
 
 async function throwBottle() {
+  if (!bottleMood.value) {
+    alert('请选择此刻的心情')
+    return
+  }
   if (!bottleText.value.trim()) {
-    alert('请先写下你的匿名心情')
+    alert('写下一句话再扔出去吧')
     return
   }
 
@@ -430,7 +438,8 @@ async function throwBottle() {
   try {
     const res: any = await api.throwDriftBottle({
       content: bottleText.value,
-      moodEmoji: bottleMood.value
+      moodEmoji: bottleMood.value.emoji,
+      moodLabel: bottleMood.value.label
     })
 
     bottleResult.value = res.data

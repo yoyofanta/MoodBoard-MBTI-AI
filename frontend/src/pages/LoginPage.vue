@@ -49,6 +49,11 @@
         />
       </div>
 
+      <label v-if="mode === 'login'" class="remember-row">
+        <input v-model="rememberMe" type="checkbox" />
+        <span>记住我</span>
+      </label>
+
       <!-- 登录 / 注册按钮 -->
       <button
         class="primary-btn"
@@ -79,6 +84,7 @@
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '../api'
+import { setToken, setCurrentUser } from '../utils/authStorage'
 
 type ModeType = 'login' | 'register'
 
@@ -86,6 +92,7 @@ const router = useRouter()
 
 const mode = ref<ModeType>('login')
 const loading = ref(false)
+const rememberMe = ref(false)
 
 const form = reactive({
   username: 'demo',
@@ -177,8 +184,13 @@ async function login() {
       return
     }
 
-    saveLoginState(token, form.username)
-    router.push('/app/diary')
+    saveLoginState(token, form.username, rememberMe.value)
+    const profileRes: any = await api.getProfile()
+    const profile = getPayload(profileRes)
+    const complete = !!profile?.nickname?.trim()
+    if (complete) sessionStorage.removeItem('moodboard_onboarding_pending')
+    else sessionStorage.setItem('moodboard_onboarding_pending', '1')
+    router.push(complete ? '/app/diary' : '/onboarding')
   } catch (e) {
     console.error(e)
     alert('登录失败，请检查账号或密码')
@@ -209,10 +221,11 @@ async function register() {
       return
     }
 
-    saveLoginState(token, form.username)
+    saveLoginState(token, form.username, false)
+    sessionStorage.setItem('moodboard_onboarding_pending', '1')
 
     alert('注册成功，已自动登录')
-    router.push('/app/diary')
+    router.push('/onboarding')
   } catch (e: any) {
     console.error(e)
 
@@ -252,7 +265,7 @@ async function guestLogin() {
       return
     }
 
-    saveLoginState(token, guestUsername)
+    saveLoginState(token, guestUsername, false)
 
     try {
       await api.saveProfile({
@@ -282,14 +295,9 @@ async function guestLogin() {
   }
 }
 
-function saveAuth(token: string, userKey: string) {
-  localStorage.setItem('token', token)
-  localStorage.setItem('moodboard_current_user', userKey || 'user')
-}
-
-function saveLoginState(token: string, userKey: string) {
-  localStorage.setItem('token', token)
-  localStorage.setItem('moodboard_current_user', userKey || 'user')
+function saveLoginState(token: string, userKey: string, remember = false) {
+  setToken(token, remember)
+  setCurrentUser(userKey, remember)
 }
 
 </script>
@@ -444,6 +452,8 @@ function saveLoginState(token: string, userKey: string) {
   line-height: 1.7;
   color: #a39d92;
 }
+
+.remember-row { display: flex; align-items: center; gap: 8px; margin-top: 16px; color: #8e887f; font-size: 16px; }
 
 @media (max-width: 640px) {
   .login-page {
