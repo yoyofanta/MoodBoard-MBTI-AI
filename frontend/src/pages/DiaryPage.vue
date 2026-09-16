@@ -51,9 +51,9 @@
             ‹
           </button>
 
-          <div class="period-title">
+          <button class="period-title" type="button" @click="openPeriodPicker">
             {{ periodTitle }}
-          </div>
+          </button>
 
           <button class="circle-btn" :disabled="!canGoNextPeriod" @click="nextPeriod">
             ›
@@ -310,6 +310,26 @@
         </div>
       </section>
     </section>
+
+    <div v-if="pickerOpen" class="picker-backdrop" @click.self="closePeriodPicker">
+      <section class="period-picker" role="dialog" aria-modal="true" @keydown.esc="closePeriodPicker">
+        <div class="picker-head">
+          <h2>选择{{ viewMode === 'week' ? '日期' : viewMode === 'month' ? '月份' : '年份' }}</h2>
+          <button type="button" class="picker-close" @click="closePeriodPicker">×</button>
+        </div>
+        <input v-if="viewMode === 'week'" v-model="pickerDate" class="picker-input" type="date" :max="todayString" @change="applyPeriodPicker" />
+        <div v-else-if="viewMode === 'month'" class="picker-row">
+          <select v-model.number="pickerYear" class="picker-input"><option v-for="year in pickerYears" :key="year" :value="year">{{ year }}年</option></select>
+          <select v-model.number="pickerMonth" class="picker-input"><option v-for="month in 12" :key="month" :value="month">{{ month }}月</option></select>
+          <button type="button" class="picker-confirm" @click="applyPeriodPicker">确定</button>
+        </div>
+        <div v-else class="picker-row">
+          <input v-model="pickerYearText" class="picker-input" type="number" min="2000" max="2100" placeholder="2000-2100" @keydown.enter="applyPeriodPicker" />
+          <button type="button" class="picker-confirm" @click="applyPeriodPicker">确定</button>
+        </div>
+        <p v-if="pickerError" class="picker-error">{{ pickerError }}</p>
+      </section>
+    </div>
   </main>
 </template>
 
@@ -574,6 +594,47 @@ const canGoNextPeriod = computed(() => {
   else next.setFullYear(next.getFullYear() + 1)
   return !isFutureDate(formatDate(next), todayString)
 })
+
+const pickerOpen = ref(false)
+const pickerDate = ref(todayString)
+const pickerYear = ref(currentDate.value.getFullYear())
+const pickerMonth = ref(currentDate.value.getMonth() + 1)
+const pickerYearText = ref(String(currentDate.value.getFullYear()))
+const pickerError = ref('')
+const pickerYears = Array.from({ length: 101 }, (_, index) => 2000 + index)
+
+function openPeriodPicker() {
+  pickerError.value = ''
+  pickerDate.value = localDateString(currentDate.value)
+  pickerYear.value = currentDate.value.getFullYear()
+  pickerMonth.value = currentDate.value.getMonth() + 1
+  pickerYearText.value = String(currentDate.value.getFullYear())
+  pickerOpen.value = true
+}
+
+function closePeriodPicker() { pickerOpen.value = false; pickerError.value = '' }
+
+function applyPeriodPicker() {
+  pickerError.value = ''
+  let next: Date
+  if (viewMode.value === 'week') {
+    if (!pickerDate.value || isFutureDate(pickerDate.value, todayString)) { pickerError.value = '请选择今天或过去的日期'; return }
+    const [year, month, day] = pickerDate.value.split('-').map(Number)
+    next = new Date(year, month - 1, day)
+  } else if (viewMode.value === 'month') {
+    const value = `${pickerYear.value}-${String(pickerMonth.value).padStart(2, '0')}-01`
+    if (isFutureDate(value, todayString)) { pickerError.value = '暂不支持选择未来月份'; return }
+    next = new Date(pickerYear.value, pickerMonth.value - 1, 1)
+  } else {
+    const year = Number(pickerYearText.value)
+    if (!Number.isInteger(year) || year < 2000 || year > 2100) { pickerError.value = '请输入 2000～2100 的整数年份'; return }
+    if (year > Number(todayString.slice(0, 4))) { pickerError.value = '暂不支持选择未来年份'; return }
+    next = new Date(year, 0, 1)
+  }
+  currentDate.value = next
+  pickerOpen.value = false
+  loadDiaries()
+}
 
 /**
  * 关键修复：
@@ -1038,12 +1099,47 @@ function formatDate(value: Date | string) {
 }
 
 .period-title {
+  border: none;
+  border-radius: 999px;
+  padding: 10px 18px;
+  background: transparent;
   min-width: 240px;
   text-align: center;
   color: #6d6257;
   font-size: 18px;
   font-weight: 700;
+  cursor: pointer;
+  transition: background .2s ease;
 }
+
+.period-title:hover { background: #f3eee6; }
+
+.picker-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(47, 47, 47, .18);
+}
+
+.period-picker {
+  width: min(420px, 100%);
+  padding: 24px;
+  border-radius: 28px;
+  background: #fffdf9;
+  box-shadow: 0 22px 60px rgba(64, 52, 42, .18);
+}
+
+.picker-head, .picker-row { display: flex; align-items: center; gap: 12px; }
+.picker-head { justify-content: space-between; margin-bottom: 18px; }
+.picker-head h2 { margin: 0; color: #303236; font-size: 22px; }
+.picker-close { border: 0; background: transparent; color: #8e887f; font-size: 26px; cursor: pointer; }
+.picker-input { flex: 1; min-width: 0; border: 0; border-radius: 16px; background: #f8f4ed; padding: 12px 14px; color: #6e5741; font-size: 16px; outline: none; }
+.picker-confirm { border: 0; border-radius: 999px; padding: 12px 18px; background: #c3ab89; color: white; cursor: pointer; }
+.picker-error { margin: 12px 0 0; color: #a66052; font-size: 14px; }
 
 .card {
   margin-bottom: 26px;
