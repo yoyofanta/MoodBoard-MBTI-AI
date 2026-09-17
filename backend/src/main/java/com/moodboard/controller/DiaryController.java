@@ -5,6 +5,7 @@ import com.moodboard.common.R;
 import com.moodboard.entity.EmotionDiary;
 import com.moodboard.repository.EmotionDiaryRepository;
 import com.moodboard.service.AuthService;
+import com.moodboard.service.MemoryService;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -18,7 +19,12 @@ import java.util.Map;
 public class DiaryController {
     private final AuthService authService;
     private final EmotionDiaryRepository diaryRepo;
-    public DiaryController(AuthService authService, EmotionDiaryRepository diaryRepo) { this.authService = authService; this.diaryRepo = diaryRepo; }
+    private final MemoryService memoryService;
+    public DiaryController(AuthService authService, EmotionDiaryRepository diaryRepo, MemoryService memoryService) {
+        this.authService = authService;
+        this.diaryRepo = diaryRepo;
+        this.memoryService = memoryService;
+    }
 
     @PostMapping
     public Map<String, Object> save(@RequestHeader("Authorization") String auth, @RequestBody Map<String, Object> body) {
@@ -51,7 +57,9 @@ public class DiaryController {
         d.personaTag = MapUtil.str(body, "personaTag", "");
         d.personaPair = MapUtil.str(body, "personaPair", "");
         d.updatedAt = LocalDateTime.now();
-        return R.ok(diaryRepo.save(d));
+        EmotionDiary saved = diaryRepo.save(d);
+        refreshEmotionMemory(userId);
+        return R.ok(saved);
     }
 
     @GetMapping("/date")
@@ -123,7 +131,9 @@ public class DiaryController {
         diary.personaPair = readString(body, "personaPair", diary.personaPair);
         diary.updatedAt = LocalDateTime.now();
 
-        return R.ok(diaryRepo.save(diary));
+        EmotionDiary saved = diaryRepo.save(diary);
+        refreshEmotionMemory(userId);
+        return R.ok(saved);
     }
 
     @DeleteMapping("/{id}")
@@ -131,7 +141,26 @@ public class DiaryController {
         Long userId = authService.currentUserId(auth);
         EmotionDiary diary = getOwnedDiary(id, userId);
         diaryRepo.deleteById(id);
+        refreshEmotionMemory(userId);
         return R.msg("删除成功");
+    }
+
+    private void refreshEmotionMemory(Long userId) {
+        List<EmotionDiary> recent = diaryRepo.findByUserIdOrderByDiaryDateDesc(userId).stream()
+                .filter(d -> d.diaryDate != null && !d.diaryDate.isAfter(LocalDate.now()))
+                .limit(5)
+                .toList();
+        String labels = recent.stream()
+                .map(d -> d.emotionLabel == null ? "" : d.emotionLabel.trim())
+                .filter(s -> !s.isBlank())
+                .flatMap(s -> java.util.Arrays.stream(s.split("[,，、]")))
+                .map(String::trim)
+                .filter(s -> !s.isBlank())
+                .distinct()
+                .limit(4)
+                .collect(java.util.stream.Collectors.joining("、"));
+        String summary = labels.isBlank() ? "" : "用户近期可能存在" + labels + "情绪。";
+        memoryService.updateMemory(userId, summary, null, null, null, null, null);
     }
 
     private EmotionDiary getOwnedDiary(Long id, Long userId) {

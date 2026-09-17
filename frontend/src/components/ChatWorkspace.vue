@@ -161,6 +161,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { api } from '../api'
+import { getCurrentUser, getCurrentUserId } from '../utils/authStorage'
 
 type ChatMode = 'daily' | 'persona'
 
@@ -236,16 +237,17 @@ const currentUserKey = computed(() => {
 })
 
 const storageKey = computed(() => {
-  const userKey = currentUserKey.value
+  const userKey = (getCurrentUserId() || getCurrentUser() || currentUserKey.value).replace(/[^a-zA-Z0-9_-]/g, '_')
+  const namespace = import.meta.env.VITE_DEMO_MODE === 'true' ? 'moodboard_demo' : 'moodboard_user'
 
   if (isDaily.value) {
-    return `moodboard_daily_chat_sessions_${userKey}`
+    return `${namespace}_daily_chat_sessions_${userKey}`
   }
 
   const currentPersona: any = props.persona || {}
   const personaCode = currentPersona.code || 'UNKNOWN'
 
-  return `moodboard_persona_chat_sessions_${personaCode}_${userKey}`
+  return `${namespace}_persona_chat_sessions_${personaCode}_${userKey}`
 })
 
 const activeSession = computed(() => {

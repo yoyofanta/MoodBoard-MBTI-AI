@@ -17,7 +17,7 @@
       </article>
       <article class="memory-item conversation-item">
         <p class="item-title">最近一次对话</p>
-        <div class="dialogue"><div><span class="speaker">你</span><p :class="{ collapsed: isLongQuestion && !expandedQuestion }">{{ display.lastQuestion || '暂无最近问题' }}</p></div><div><span class="speaker ai">AI</span><p :class="{ collapsed: isLongAnswer && !expandedAnswer }">{{ display.answer || '暂无最近回答' }}</p></div></div>
+        <div class="dialogue"><div><span class="speaker">你</span><p :class="{ collapsed: isLongQuestion && !expandedQuestion }">{{ display.lastQuestion || '暂无最近问题' }}</p></div><div><span class="speaker ai">{{ display.isRoundtable ? '圆桌结论' : 'AI' }}</span><p :class="{ collapsed: isLongAnswer && !expandedAnswer }">{{ display.answer || '暂无最近回答' }}</p></div></div>
         <button v-if="isLongQuestion || isLongAnswer" class="expand-btn" type="button" @click="expandedQuestion = !expandedQuestion; expandedAnswer = !expandedAnswer">{{ expandedQuestion || expandedAnswer ? '收起' : '展开' }}</button>
       </article>
       <article class="memory-item">
@@ -43,13 +43,17 @@ const lastRefreshTime = ref('')
 const memory = reactive({ recentEmotionSummary: '', recentPersonaCode: '', recentPersonaName: '', chatSummary: '', lastQuestion: '', lastAnswer: '' })
 function cleanMemoryText(value?: string | null) {
   if (!value) return ''
-  return value.replace(/【[^】]*】/g, '').replace(/\s+/g, ' ').trim()
+  return value
+    .replace(/\s*【当前会话近期内容】[\s\S]*$/g, '')
+    .replace(/【[^】]*】/g, '')
+    .replace(/^\s*(?:用户[：:]\s*)+/, '')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 const display = computed(() => {
-  const answer = memory.recentPersonaCode === 'AGENT_ROUNDTABLE'
-    ? (cleanMemoryText(memory.chatSummary) || cleanMemoryText(memory.lastAnswer))
-    : cleanMemoryText(memory.lastAnswer)
-  return { recentEmotionSummary: cleanMemoryText(memory.recentEmotionSummary), recentPersonaName: cleanMemoryText(memory.recentPersonaName), recentPersonaCode: cleanMemoryText(memory.recentPersonaCode), chatSummary: cleanMemoryText(memory.chatSummary), lastQuestion: cleanMemoryText(memory.lastQuestion), answer }
+  const isRoundtable = memory.recentPersonaCode === 'AGENT_ROUNDTABLE'
+  const answer = cleanMemoryText(memory.lastAnswer)
+  return { recentEmotionSummary: cleanMemoryText(memory.recentEmotionSummary), recentPersonaName: cleanMemoryText(memory.recentPersonaName), recentPersonaCode: cleanMemoryText(memory.recentPersonaCode), chatSummary: cleanMemoryText(memory.chatSummary), lastQuestion: cleanMemoryText(memory.lastQuestion), answer, isRoundtable }
 })
 const isLongQuestion = computed(() => display.value.lastQuestion.length > 180)
 const isLongAnswer = computed(() => display.value.answer.length > 260)

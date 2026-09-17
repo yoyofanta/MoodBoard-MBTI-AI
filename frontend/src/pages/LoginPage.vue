@@ -84,7 +84,7 @@
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '../api'
-import { setToken, setCurrentUser } from '../utils/authStorage'
+import { setToken, setCurrentUser, setCurrentUserId } from '../utils/authStorage'
 
 type ModeType = 'login' | 'register'
 
@@ -184,7 +184,8 @@ async function login() {
       return
     }
 
-    saveLoginState(token, form.username, rememberMe.value)
+    const loginData = getPayload(res)
+    saveLoginState(token, form.username, rememberMe.value, loginData.userId || loginData.user?.id)
     const profileRes: any = await api.getProfile()
     const profile = getPayload(profileRes)
     const complete = !!profile?.nickname?.trim()
@@ -221,7 +222,8 @@ async function register() {
       return
     }
 
-    saveLoginState(token, form.username, false)
+    const loginData = getPayload(loginRes)
+    saveLoginState(token, form.username, false, loginData.userId || loginData.user?.id)
     sessionStorage.setItem('moodboard_onboarding_pending', '1')
 
     alert('注册成功，已自动登录')
@@ -265,7 +267,8 @@ async function guestLogin() {
       return
     }
 
-    saveLoginState(token, guestUsername, false)
+    const loginData = getPayload(loginRes)
+    saveLoginState(token, guestUsername, false, loginData.userId || loginData.user?.id)
 
     try {
       await api.saveProfile({
@@ -295,9 +298,10 @@ async function guestLogin() {
   }
 }
 
-function saveLoginState(token: string, userKey: string, remember = false) {
+function saveLoginState(token: string, userKey: string, remember = false, userId?: string | number) {
   setToken(token, remember)
   setCurrentUser(userKey, remember)
+  setCurrentUserId(userId ?? userKey, remember)
 }
 
 </script>

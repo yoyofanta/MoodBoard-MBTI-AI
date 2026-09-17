@@ -109,6 +109,19 @@ function writeDiaries(items: any[]) {
   localStorage.setItem(diaryKey(), JSON.stringify(items))
 }
 
+function refreshDemoEmotionMemory() {
+  const labels = readDiaries()
+    .map((item: any) => item.emotionLabel || item.moodLabel || '')
+    .flatMap((value: string) => value.split(/[,，、]/))
+    .map((value: string) => value.trim())
+    .filter(Boolean)
+    .filter((value: string, index: number, values: string[]) => values.indexOf(value) === index)
+    .slice(0, 4)
+  const current = memory()
+  current.recentEmotionSummary = labels.length ? `用户近期可能存在${labels.join('、')}情绪。` : ''
+  localStorage.setItem(memoryKey(), JSON.stringify(current))
+}
+
 function dateOf(item: any) {
   return item.diaryDate || item.date
 }
@@ -149,7 +162,7 @@ function memory() {
 
 export const demoApi: any = {
   register: async (data: any) => response({ username: data.username }),
-  login: async (data: any) => response({ token: `demo-token-${data.username || 'demo'}`, username: data.username || 'demo' }),
+  login: async (data: any) => response({ token: `demo-token-${data.username || 'demo'}`, username: data.username || 'demo', userId: data.username || 'demo' }),
   getProfile: async () => response(memoryProfile()),
   saveProfile: async (data: any) => {
     localStorage.setItem(profileKey(), JSON.stringify({ ...demoUser, ...data }))
@@ -165,15 +178,18 @@ export const demoApi: any = {
     const item = { ...data, id: Date.now(), diaryDate: data.diaryDate || data.date }
     const items = readDiaries().filter((entry: any) => dateOf(entry) !== dateOf(item))
     writeDiaries([...items, item])
+    refreshDemoEmotionMemory()
     return response(item)
   },
   updateDiary: async (id: number, data: any) => {
     const items = readDiaries().map((item: any) => item.id === id ? { ...item, ...data, id } : item)
     writeDiaries(items)
+    refreshDemoEmotionMemory()
     return response(items.find((item: any) => item.id === id) || data)
   },
   deleteDiary: async (id: number) => {
     writeDiaries(readDiaries().filter((item: any) => item.id !== id))
+    refreshDemoEmotionMemory()
     return response({ deleted: true, id })
   },
   getDiaryByDate: async (date: string) => response(readDiaries().find((item: any) => dateOf(item) === date) || null),

@@ -26,6 +26,7 @@ public class AgentRoundtableService {
         if (topic == null || topic.isBlank()) {
             topic = "用户想和多个 Agent 一起讨论当前困扰。";
         }
+        topic = cleanQuestion(topic);
 
         if (agents == null || agents.size() < 2) {
             throw new RuntimeException("至少需要选择 2 个 Agent");
@@ -118,27 +119,17 @@ public class AgentRoundtableService {
     }
 
     private String buildSummary(String topic, List<Map<String, Object>> replies) {
-        StringBuilder builder = new StringBuilder();
+        return "综合来看，你可以先不用急着一次性解决所有问题。"
+                + "更适合的做法是：先确认当前最困扰你的一个点，"
+                + "把它拆成今天能完成的一小步，再根据结果慢慢调整。";
+    }
 
-        builder.append("围绕「")
-                .append(topic)
-                .append("」，不同 Agent 给出了几个角度：\n\n");
-
-        for (Map<String, Object> reply : replies) {
-            builder.append("・")
-                    .append(reply.get("agentCode"))
-                    .append(" ")
-                    .append(reply.get("agentName"))
-                    .append("：")
-                    .append(shortText(str(reply.get("reply")), 80))
-                    .append("\n");
-        }
-
-        builder.append("\n综合来看，你可以先不用急着一次性解决所有问题。")
-                .append("更适合的做法是：先确认当前最困扰你的一个点，")
-                .append("把它拆成今天能完成的一小步，再根据结果慢慢调整。");
-
-        return builder.toString();
+    private String cleanQuestion(String value) {
+        return value
+                .replace("【本轮用户输入】", "")
+                .replaceAll("\\s*【当前会话近期内容】[\\s\\S]*$", "")
+                .replaceFirst("^\\s*(?:用户[：:]\\s*)+", "")
+                .trim();
     }
 
     private String extractReply(Map<String, Object> result) {

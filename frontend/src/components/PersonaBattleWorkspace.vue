@@ -216,6 +216,7 @@
 </template>
 
 <script setup lang="ts">
+import { getCurrentUser, getCurrentUserId } from '../utils/authStorage'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { api } from '../api'
 
@@ -248,11 +249,13 @@ type BattleSession = {
 }
 
 function getCurrentUserKey() {
-  return localStorage.getItem('moodboard_current_user') || 'guest'
+  return getCurrentUserId() || getCurrentUser() || 'guest'
 }
 
 function getStorageKey() {
-  return `moodboard_agent_battle_sessions_${getCurrentUserKey()}`
+  const userKey = getCurrentUserKey().replace(/[^a-zA-Z0-9_-]/g, '_')
+  const namespace = import.meta.env.VITE_DEMO_MODE === 'true' ? 'moodboard_demo' : 'moodboard_user'
+  return `${namespace}_agent_battle_sessions_${userKey}`
 }
 
 const agentOptions: AgentOption[] = [
